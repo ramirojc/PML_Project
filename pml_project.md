@@ -9,7 +9,7 @@ output: html_document
 ##1)Synopsis##
 In this project we are going to build a model to evaluate and identify common mistakes in weight lifting technique, based on a set of movement sensors measurements distributed on the subject.  
 
-<img src="on-body-sensing.png" width="200" height="80" align="middle">  
+<img src="on-body-sensing.png" width="200" height="300" align="middle">  
 
 ##2)Exploratory Data Analysis##
 First i'll load the datasets into memory. I'm not showing the code to download the files as it is not the scope of the project.
