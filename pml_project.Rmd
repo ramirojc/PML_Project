@@ -1,0 +1,102 @@
+---
+title: "Practical Machine Learning Project"
+author: "Ramiro Caro"
+date: "Saturday, June 20, 2015"
+output: html_document
+---
+  
+  
+##1)Synopsis##
+In this project we are going to build a model to evaluate and identify common mistakes in weight lifting technique, based on a set of movement sensors measurements distributed on the subject.  
+
+<img src="on-body-sensing.png" width="200" height="80" align="middle">  
+
+##2)Exploratory Data Analysis##
+First i'll load the datasets into memory. I'm not showing the code to download the files as it is not the scope of the project.
+
+```{r cache=TRUE, results='hide', message=FALSE}
+full_training <- read.csv("pml-training.csv")
+full_testing <- read.csv("pml-testing.csv")
+```
+
+Inspecting the dataset we can see that there are 160 variables, however we are not going to use all of them to generated our model.  
+Also we can see that some variables correspond to sensor raw data but others are processed variables, so i group variables according the processing level as this:
+
+- Raw Data: Accelerometer, Gyro and Magnetometers output data
+- Level 1 Data: Variables processed realtime from raw data as Roll, Pitch and Yaw.
+- Level 2 Data: Include statisticals computed over a time window over raw data. Skewness, Kurtosis, Variance, etc.
+- Identifiers: Factors variables as ID, Subject, Time Window etc.
+
+For this project i decided to work only with Raw Data and Level 1 data variables. As they represent the core information.  
+Now let's generated new data set with this information only.
+
+```{r message=FALSE}
+library(dplyr)
+# Select Raw data variables and dependent variable
+raw_train_set <- select(full_training, starts_with("gyro"),starts_with("accel"),starts_with("magnet"),classe)
+
+# Select Level 1 data variables and dependent variable
+l1_train_set <- select(full_training, starts_with("roll"),starts_with("pitch"),starts_with("yaw"),classe)
+
+# Check for NAs
+sum(is.na(raw_train_set))
+sum(is.na(l1_train_set))
+
+# Repeat selection for test set
+raw_test_set <- select(full_testing, starts_with("gyro"),starts_with("accel"),starts_with("magnet"))
+l1_test_set <- select(full_testing, starts_with("roll"),starts_with("pitch"),starts_with("yaw"))
+
+sum(is.na(raw_test_set))
+sum(is.na(l1_train_set))
+
+```
+
+Now we generate 2 new training sets with reduced variables and no NAs.
+
+##3)Model Generation 1: Random Forrest with Raw Data##
+I'll start using only Raw Data, the method selected for the model generation is Random Forrest as it is one of the most accurate ones.  
+Let's start splitting the training set into 2 parts for cross validation before so we can check it before used in the training set.
+```{r cache=TRUE}
+set.seed(1)
+
+#Create Data Partition from raw training set
+inTrain <- createDataPartition(y=raw_train_set$classe, p=0.6, list=FALSE)
+training <- raw_train_set[inTrain,]
+testing <- raw_train_set[-inTrain,]
+
+#Generate a model from training data and validate it with the partition made
+raw_mod <- randomForest(classe ~ ., data=training)
+raw_pred <- predict(raw_mod, testing, type = "class")
+confusionMatrix(raw_pred, testing$classe)
+```
+In this case the accuracy of the model on the training set is 0.9855, so our estimated out of sample error is 0.0145
+
+##4)Model Generation 2: Random Forrest with Level 1 Data##
+Now i will repeat the model generation but this time using the level 1 variables.
+
+```{r cache=TRUE}
+set.seed(1)
+
+#Create Data Partition from raw training set
+inTrain <- createDataPartition(y=l1_train_set$classe, p=0.6, list=FALSE)
+training <- l1_train_set[inTrain,]
+testing <- l1_train_set[-inTrain,]
+
+#Generate a model from training data and validate it with the partition made
+l1_mod <- randomForest(classe ~ ., data=training)
+l1_pred <- predict(l1_mod, testing, type = "class")
+confusionMatrix(l1_pred, testing$classe)
+```
+In this case the accuracy of the model on the training set is 0.9841, so our estimated out of sample error is 0.0159. Note that we have the accurary is almost the same however we are using only 12 independent variables agains 36 in the raw set.
+
+##5)Test Set Predictions##
+Let's generated predictions over the testing dataset with the models we have created.
+```{r}
+raw_pred_testing <- predict(raw_mod, raw_test_set, type = "class")
+raw_pred_testing
+
+l1_pred_testing <- predict(l1_mod, l1_test_set, type = "class")
+l1_pred_testing
+```
+
+We can see that both models predict the same outcome so we i'll be using this output for the processing part of the project.
